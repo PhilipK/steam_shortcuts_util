@@ -3,6 +3,15 @@ name = "steam_shortcuts_util"
 version = "1.0.0"
 edition = "2018"
 
+authors = ["Philip Kristoffersen <philipkristoffersen@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Utilities for parsen & writing Steams shortcut.vdf file"
+repository = "https://github.com/PhilipK/steam_shortcuts_util"
+documentation = "https://docs.rs/steam_shortcuts_util/0.1.0/steam_shortcuts_util/"
+keywords = ["api", "steam", "parser"]
+categories = ["parser-implementations"]
+readme = "crates-io.md"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 nom = "7.0.*"
