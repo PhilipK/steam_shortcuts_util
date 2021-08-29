@@ -5,7 +5,7 @@ edition = "2018"
 
 authors = ["Philip Kristoffersen <philipkristoffersen@gmail.com>"]
 license = "MIT OR Apache-2.0"
-description = "Utilities for parsen & writing Steams shortcut.vdf file"
+description = "Utilities for parsing & writing Steams shortcut.vdf file format"
 repository = "https://github.com/PhilipK/steam_shortcuts_util"
 documentation = "https://docs.rs/steam_shortcuts_util/0.1.0/steam_shortcuts_util/"
 keywords = ["api", "steam", "parser"]
