@@ -75,6 +75,10 @@ fn shortcut_to_bytes(order: usize, shortcut: &Shortcut) -> Vec<u8> {
     res.append(&mut stx_to_bytes("openvr", shortcut.open_vr));
     res.append(&mut stx_to_bytes("Devkit", shortcut.dev_kit));
     res.append(&mut soh_to_bytes("DevkitGameID", shortcut.dev_kit_game_id));
+    if shortcut.dev_kit_overrite_app_id != 0{
+        res.append(&mut stx_to_bytes("DevkitOverrideAppID", shortcut.dev_kit_overrite_app_id));
+    }
+    
     res.append(&mut stx_to_bytes("LastPlayTime", shortcut.last_play_time));
 
     res.push(null);

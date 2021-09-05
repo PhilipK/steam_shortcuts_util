@@ -4,8 +4,6 @@ use nom::IResult;
 
 use crate::shortcut::Shortcut;
 
-
-
 /// Parse bytes to shortcuts, if the bytes are in a format of the shortcuts.vdf file.
 ///
 /// ### Examples
@@ -30,9 +28,7 @@ pub fn parse_shortcuts<'a>(shortcuts_bytes: &'a [u8]) -> Result<Vec<Shortcut<'a>
     }
 }
 
-fn parse_shortcuts_inner<'a>(
-    shortcuts_bytes: &'a [u8],
-) -> nom::IResult<&[u8], Vec<Shortcut<'a>>> {
+fn parse_shortcuts_inner<'a>(shortcuts_bytes: &'a [u8]) -> nom::IResult<&[u8], Vec<Shortcut<'a>>> {
     let (i, _) = shotcut_content(shortcuts_bytes)?;
     let (i, list) = many0(get_shortcut)(i)?;
     let bs = ascii::AsciiChar::BackSpace.as_byte();
@@ -54,7 +50,14 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
     let (i, allow_overlay) = get_allow_overlay(i)?;
     let (i, open_vr) = get_open_vr(i)?;
     let (i, dev_kit) = get_dev_kit(i)?;
-    let (i, dev_kit_game_id) = get_devkit_game_id(i)?;
+    let (mut i, dev_kit_game_id) = get_devkit_game_id(i)?;
+    let mut dev_kit_overrite_app_id = 0;
+    //This is optional
+    if let Ok((j, dev_kit_overrite)) = get_devkit_override_game_id(i) {
+        i = j;
+        dev_kit_overrite_app_id = dev_kit_overrite;
+    }
+
     let (i, last_play_time) = get_last_time_played(i)?;
     let (i, tags) = get_tags(i)?;
     let bs = ascii::AsciiChar::BackSpace.as_byte();
@@ -78,6 +81,7 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
             dev_kit_game_id,
             last_play_time,
             tags,
+            dev_kit_overrite_app_id,
         },
     ))
 }
@@ -124,6 +128,9 @@ fn get_devkit_game_id(i: &[u8]) -> nom::IResult<&[u8], &str> {
     soh_line_parser("DevkitGameID")(i)
 }
 
+fn get_devkit_override_game_id(i: &[u8]) -> nom::IResult<&[u8], u32> {
+    stx_line_parser("DevkitOverrideAppID", i)
+}
 fn get_tags(i: &[u8]) -> nom::IResult<&[u8], Vec<&str>> {
     use nom::sequence::tuple;
 
@@ -311,6 +318,17 @@ mod tests {
     #[test]
     fn get_shortcut_content_test() {
         let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
+        let slice = content.as_slice();
+        let (i, _) = shotcut_content(slice).unwrap();
+        let (i, s) = get_shortcut(i).unwrap();
+        assert_eq!("Celeste", s.app_name);
+        let (_i, s) = get_shortcut(i).unwrap();
+        assert_eq!("Death Stranding", s.app_name);
+    }
+
+    #[test]
+    fn get_shortcut_content_test_mixed() {
+        let content = std::fs::read("src/testdata/shortcuts2.vdf").unwrap();
         let slice = content.as_slice();
         let (i, _) = shotcut_content(slice).unwrap();
         let (i, s) = get_shortcut(i).unwrap();
