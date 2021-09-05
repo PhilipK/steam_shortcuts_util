@@ -143,7 +143,7 @@ impl<'a> Shortcut<'a> {
         let dev_kit_game_id = "";
         let last_play_time = 0;
         let dev_kit_overrite_app_id = 0;
-        let tags = vec!["Installed", "Ready To Play"];
+        let tags = vec![];
         Self {
             order,
             app_id,
@@ -187,4 +187,14 @@ impl<'a> Shortcut<'a> {
             tags: owned_tags,
         }
     }
+
+}
+impl PartialEq for ShortcutOwned{
+    fn eq(&self, other: &Self) -> bool {
+        self.app_id == other.app_id
+    }
+}
+
+impl Eq for ShortcutOwned{
+    
 }
