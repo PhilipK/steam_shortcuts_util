@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 
 /// Struct with data for a steam shortcut.vdf file.
@@ -187,14 +185,11 @@ impl<'a> Shortcut<'a> {
             tags: owned_tags,
         }
     }
-
 }
-impl PartialEq for ShortcutOwned{
+impl PartialEq for ShortcutOwned {
     fn eq(&self, other: &Self) -> bool {
         self.app_id == other.app_id
     }
 }
 
-impl Eq for ShortcutOwned{
-    
-}
+impl Eq for ShortcutOwned {}
