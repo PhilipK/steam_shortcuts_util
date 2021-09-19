@@ -161,14 +161,17 @@ fn stx_to_bytes(name: &str, input: u32) -> Vec<u8> {
 }
 #[cfg(test)]
 mod tests {
-    use crate::{shortcuts_parser, shortcuts_to_bytes, Shortcut};
+
+    use crate::{shortcuts_parser, shortcuts_to_bytes};
 
     #[test]
     fn parse_back_and_forth() {
         let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
         let shortcuts = shortcuts_parser::parse_shortcuts(content.as_slice()).unwrap();
         let shortcut_bytes_vec = shortcuts_to_bytes(&shortcuts);
-        assert_eq!(shortcut_bytes_vec, content);
+        let shortcuts_again =
+            shortcuts_parser::parse_shortcuts(shortcut_bytes_vec.as_slice()).unwrap();
+        assert_eq!(shortcuts, shortcuts_again);
     }
 
     #[test]
@@ -176,23 +179,8 @@ mod tests {
         let content = std::fs::read("src/testdata/linux_shortcut.vdf").unwrap();
         let shortcuts = shortcuts_parser::parse_shortcuts(content.as_slice()).unwrap();
         let shortcut_bytes_vec = shortcuts_to_bytes(&shortcuts);
-        assert_eq!(shortcut_bytes_vec, content);
-    }
-
-    #[test]
-    fn write_same_as_steam() {
-        let expected = std::fs::read("src/testdata/outerwilds_manual.vdf").unwrap();
-        let shorcut = Shortcut::new(
-            0,
-            "OuterWilds",
-            "\"D:\\Epic\\OuterWilds\\OuterWilds.exe\"",
-            "\"D:\\Epic\\OuterWilds\\\"",
-            "",
-            "",
-            "",
-        );
-        let shortcuts = vec![shorcut];
-        let shortcut_bytes_vec = shortcuts_to_bytes(&shortcuts);
-        assert_eq!(shortcut_bytes_vec, expected);
+        let shortcuts_again =
+            shortcuts_parser::parse_shortcuts(shortcut_bytes_vec.as_slice()).unwrap();
+        assert_eq!(shortcuts, shortcuts_again);
     }
 }

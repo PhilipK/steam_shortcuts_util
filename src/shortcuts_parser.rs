@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use nom::bytes::complete::{tag, take, take_till};
-use nom::multi::many0;
+use nom::multi::{many0, many1};
 use nom::IResult;
 
 use crate::shortcut::Shortcut;
@@ -28,37 +30,32 @@ pub fn parse_shortcuts<'a>(shortcuts_bytes: &'a [u8]) -> Result<Vec<Shortcut<'a>
     }
 }
 
-fn parse_shortcuts_inner<'a>(shortcuts_bytes: &'a [u8]) -> nom::IResult<&[u8], Vec<Shortcut<'a>>> {
-    let (i, _) = shotcut_content(shortcuts_bytes)?;
-    let (i, list) = many0(get_shortcut)(i)?;
-    let bs = ascii::AsciiChar::BackSpace.as_byte();
-    let (i, _) = tag([bs])(i)?;
-    IResult::Ok((i, list))
-}
-
 fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
     let (i, order) = get_order(i)?;
-    let (i, app_id) = get_app_id(i)?;
-    let (i, app_name) = get_app_name(i)?;
-    let (i, exe) = get_exe(i)?;
-    let (i, start_dir) = get_start_dir(i)?;
-    let (i, icon) = get_icon(i)?;
-    let (i, shortcut_path) = get_shortcut_path(i)?;
-    let (i, launch_options) = get_launch_options(i)?;
-    let (i, is_hidden) = get_is_hidden(i)?;
-    let (i, allow_desktop_config) = get_allow_desktop_config(i)?;
-    let (i, allow_overlay) = get_allow_overlay(i)?;
-    let (i, open_vr) = get_open_vr(i)?;
-    let (i, dev_kit) = get_dev_kit(i)?;
-    let (mut i, dev_kit_game_id) = get_devkit_game_id(i)?;
-    let mut dev_kit_overrite_app_id = 0;
-    //This is optional
-    if let Ok((j, dev_kit_overrite)) = get_devkit_override_game_id(i) {
-        i = j;
-        dev_kit_overrite_app_id = dev_kit_overrite;
-    }
 
-    let (i, last_play_time) = get_last_time_played(i)?;
+    let (i, lines) = parse_all_lines(i)?;
+
+    let stx_value = |name: &str| lines.get(name).map(|l| l.num_value()).unwrap_or_default();
+
+    let soh_value = |name: &str| lines.get(name).map(|l| l.text_value()).unwrap_or_default();
+
+    let app_id = stx_value("app_id");
+    let app_name = soh_value("AppName");
+    let exe = soh_value("Exe");
+    let start_dir = soh_value("StartDir");
+    let icon = soh_value("icon");
+    let shortcut_path = soh_value("ShortcutPath");
+    let launch_options = soh_value("LaunchOptions");
+    let is_hidden = stx_value("IsHidden") != 0;
+    let allow_desktop_config = stx_value("AllowDesktopConfig") != 0;
+    let allow_overlay = stx_value("AllowOverlay") != 0;
+    let open_vr = stx_value("openvr");
+    let dev_kit = stx_value("Devkit");
+
+    let dev_kit_game_id = soh_value("DevkitGameID");
+    let dev_kit_overrite_app_id = stx_value("DevkitOverrideAppID");
+    let last_play_time = stx_value("LastPlayTime");
+
     let (i, tags) = get_tags(i)?;
     let bs = ascii::AsciiChar::BackSpace.as_byte();
     let (i, _) = tag([bs])(i)?;
@@ -86,51 +83,127 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
     ))
 }
 
+fn parse_shortcuts_inner<'a>(shortcuts_bytes: &'a [u8]) -> nom::IResult<&[u8], Vec<Shortcut<'a>>> {
+    let (i, _) = shotcut_content(shortcuts_bytes)?;
+    let (i, list) = many0(get_shortcut)(i)?;
+    let bs = ascii::AsciiChar::BackSpace.as_byte();
+    let (i, _) = tag([bs])(i)?;
+    IResult::Ok((i, list))
+}
+
+pub enum LineType<'a> {
+    Text { name: &'a str, value: &'a str },
+    Numeric { name: &'a str, value: u32 },
+}
+
+impl<'a> LineType<'a> {
+    fn name(&self) -> &'a str {
+        match *self {
+            LineType::Text { name, value: _ } => name,
+            LineType::Numeric { name, value: _ } => name,
+        }
+    }
+
+    fn text_value(&self) -> &'a str {
+        match *self {
+            LineType::Text { name: _, value } => value,
+            LineType::Numeric { name: _, value: _ } => "",
+        }
+    }
+
+    fn num_value(&self) -> u32 {
+        match *self {
+            LineType::Text { name: _, value: _ } => 0,
+            LineType::Numeric { name: _, value } => value,
+        }
+    }
+}
+
+fn parse_all_lines<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], HashMap<&'a str, LineType<'a>>> {
+    let (i, list) = many1(parse_a_line)(i)?;
+    let mut res = HashMap::new();
+    let list_iter = list.into_iter();
+    list_iter.for_each(|l| {
+        res.insert(l.name(), l);
+    });
+    IResult::Ok((i, res))
+}
+
+fn parse_a_line<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], LineType<'a>> {
+    if let Ok((i, (name, value))) = parse_text_line(i) {
+        return IResult::Ok((i, LineType::Text { name, value }));
+    }
+    let (i, (name, value)) = parse_numeric_line(i)?;
+    return IResult::Ok((i, LineType::Numeric { name, value }));
+}
+
+fn parse_numeric_line<'b>(i: &'b [u8]) -> nom::IResult<&'b [u8], (&'b str, u32)> {
+    let stx = ascii::AsciiChar::SOX.as_byte();
+
+    let (i, _) = tag([stx])(i)?;
+    let (i, key) = get_null_terminated_str(i)?;
+    let (i, value) = get_a_u32(i)?;
+    IResult::Ok((i, (key, value)))
+}
+
+fn parse_text_line<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], (&'a str, &'a str)> {
+    let soh = ascii::AsciiChar::SOH.as_byte();
+    let (i, _) = tag([soh])(i)?;
+    let (i, key) = get_null_terminated_str(i)?;
+    let (i, value) = get_null_terminated_str(i)?;
+    IResult::Ok((i, (key, value)))
+}
+
+fn get_a_u32<'b>(i: &'b [u8]) -> nom::IResult<&'b [u8], u32> {
+    use nom::branch::alt;
+    alt((get_soh_u32, get_normal_u32))(i)
+}
+
+fn get_normal_u32<'b>(i: &'b [u8]) -> nom::IResult<&'b [u8], u32> {
+    let (i, app_bytes) = take(4usize)(i)?;
+    let app_id_bytes_slized: [u8; 4] = [app_bytes[0], app_bytes[1], app_bytes[2], app_bytes[3]];
+    let app_id = u32::from_le_bytes(app_id_bytes_slized);
+    IResult::Ok((i, app_id))
+}
+
+fn get_soh_u32<'b>(i: &'b [u8]) -> nom::IResult<&'b [u8], u32> {
+    let soh = ascii::AsciiChar::SOH.as_byte();
+    let (i, _) = tag([soh])(i)?;
+    let (i, app_id_bytes) = take(3usize)(i)?;
+    let app_id_bytes_slized: [u8; 4] = [0x00, app_id_bytes[0], app_id_bytes[1], app_id_bytes[2]];
+    let app_id = u32::from_le_bytes(app_id_bytes_slized);
+    IResult::Ok((i, app_id))
+}
+
+fn get_null_terminated_str<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], &'a str> {
+    let null = ascii::AsciiChar::Null.as_byte();
+    let (i, str_bytes) = take_till(|cond| cond == null)(i)?;
+
+    //TODO Remove this unwrap
+    let str_res = std::str::from_utf8(str_bytes).unwrap();
+    let (i, _null) = tag([null])(i)?;
+    IResult::Ok((i, str_res))
+}
+
 fn get_order(i: &[u8]) -> nom::IResult<&[u8], usize> {
     let null = ascii::AsciiChar::Null.as_byte();
     let (i, _) = tag([null])(i)?;
-    let (i, order_bytes) = take_till(|c| c == null)(i)?;
-    let (i, _) = tag([null])(i)?;
-    let order_string = std::str::from_utf8(&order_bytes).unwrap();
+    let (i, order_string) = get_null_terminated_str(i)?;
     let order = order_string.parse::<usize>().unwrap();
     IResult::Ok((i, order))
 }
 
-fn get_app_id(i: &[u8]) -> nom::IResult<&[u8], u32> {
-    stx_line_parser("appid", i)
-}
+// fn get_last_time_played(i: &[u8]) -> nom::IResult<&[u8], u32> {
+//     stx_line_parser("LastPlayTime", i)
+// }
 
-fn get_is_hidden(i: &[u8]) -> nom::IResult<&[u8], bool> {
-    stx_line_parser("IsHidden", i).map(|(u, val)| (u, val != 0))
-}
+// fn get_devkit_game_id(i: &[u8]) -> nom::IResult<&[u8], &str> {
+//     soh_line_parser("DevkitGameID")(i)
+// }
 
-fn get_allow_desktop_config(i: &[u8]) -> nom::IResult<&[u8], bool> {
-    stx_line_parser("AllowDesktopConfig", i).map(|(u, val)| (u, val != 0))
-}
-
-fn get_allow_overlay(i: &[u8]) -> nom::IResult<&[u8], bool> {
-    stx_line_parser("AllowOverlay", i).map(|(u, val)| (u, val != 0))
-}
-
-fn get_open_vr(i: &[u8]) -> nom::IResult<&[u8], u32> {
-    stx_line_parser("openvr", i)
-}
-
-fn get_dev_kit(i: &[u8]) -> nom::IResult<&[u8], u32> {
-    stx_line_parser("Devkit", i)
-}
-
-fn get_last_time_played(i: &[u8]) -> nom::IResult<&[u8], u32> {
-    stx_line_parser("LastPlayTime", i)
-}
-
-fn get_devkit_game_id(i: &[u8]) -> nom::IResult<&[u8], &str> {
-    soh_line_parser("DevkitGameID")(i)
-}
-
-fn get_devkit_override_game_id(i: &[u8]) -> nom::IResult<&[u8], u32> {
-    stx_line_parser("DevkitOverrideAppID", i)
-}
+// fn get_devkit_override_game_id(i: &[u8]) -> nom::IResult<&[u8], u32> {
+//     stx_line_parser("DevkitOverrideAppID", i)
+// }
 fn get_tags(i: &[u8]) -> nom::IResult<&[u8], Vec<&str>> {
     use nom::sequence::tuple;
 
@@ -160,96 +233,6 @@ fn take_tag<'b>(i: &[u8]) -> nom::IResult<&[u8], &str> {
     IResult::Ok((i, tag_name))
 }
 
-fn stx_line_parser<'b>(key: &str, i: &'b [u8]) -> nom::IResult<&'b [u8], u32> {
-    use nom::branch::alt;
-    alt((stx_single_line_parser(key), stx_4_line_parser(key)))(i)
-}
-
-fn stx_4_line_parser(key: &str) -> impl Fn(&[u8]) -> nom::IResult<&[u8], u32> {
-    let owned_key = key.to_owned();
-    move |i: &[u8]| {
-        use nom::sequence::tuple;
-        let stx = ascii::AsciiChar::SOX.as_byte();
-        let null = ascii::AsciiChar::Null.as_byte();
-        let (i, (_, _, _, app_id_bytes)) = tuple((
-            tag([stx]),
-            tag(owned_key.as_str()),
-            tag([null]),
-            take(4usize),
-        ))(i)?;
-        let app_id_bytes_slized: [u8; 4] = [
-            app_id_bytes[0],
-            app_id_bytes[1],
-            app_id_bytes[2],
-            app_id_bytes[3],
-        ];
-
-        let app_id = u32::from_le_bytes(app_id_bytes_slized);
-        IResult::Ok((i, app_id))
-    }
-}
-
-fn stx_single_line_parser(key: &str) -> impl Fn(&[u8]) -> nom::IResult<&[u8], u32> {
-    let owned_key = key.to_owned();
-    move |i: &[u8]| {
-        use nom::sequence::tuple;
-        let stx = ascii::AsciiChar::SOX.as_byte();
-        let null = ascii::AsciiChar::Null.as_byte();
-        let soh = ascii::AsciiChar::SOH.as_byte();
-
-        let mut short_form = tuple((
-            tag([stx]),
-            tag(owned_key.as_str()),
-            tag([null]),
-            tag([soh]),
-            take(3usize),
-        ));
-        let (i, (_, _, _, _, app_id_bytes)) = short_form(i)?;
-        let app_id_bytes_slized: [u8; 4] =
-            [0x00, app_id_bytes[0], app_id_bytes[1], app_id_bytes[2]];
-        let app_id = u32::from_le_bytes(app_id_bytes_slized);
-        IResult::Ok((i, app_id))
-    }
-}
-
-fn get_app_name(i: &[u8]) -> nom::IResult<&[u8], &str> {
-    soh_line_parser("AppName")(i)
-}
-
-fn get_exe(i: &[u8]) -> nom::IResult<&[u8], &str> {
-    soh_line_parser("Exe")(i)
-}
-
-fn get_start_dir(i: &[u8]) -> nom::IResult<&[u8], &str> {
-    soh_line_parser("StartDir")(i)
-}
-
-fn get_icon(i: &[u8]) -> nom::IResult<&[u8], &str> {
-    soh_line_parser("icon")(i)
-}
-
-fn get_shortcut_path(i: &[u8]) -> nom::IResult<&[u8], &str> {
-    soh_line_parser("ShortcutPath")(i)
-}
-
-fn get_launch_options(i: &[u8]) -> nom::IResult<&[u8], &str> {
-    soh_line_parser("LaunchOptions")(i)
-}
-
-fn soh_line_parser(key: &str) -> impl Fn(&[u8]) -> nom::IResult<&[u8], &str> {
-    let owned_key = key.to_owned();
-    move |i: &[u8]| {
-        let soh = ascii::AsciiChar::SOH.as_byte();
-        let null = ascii::AsciiChar::Null.as_byte();
-        let (i, _) = tag([soh])(i)?;
-        let (i, _) = tag(owned_key.as_str())(i)?;
-        let (i, _) = tag([null])(i)?;
-        let (i, exe_name) = take_till(|c| c == null)(i)?;
-        let (i, _) = tag([null])(i)?;
-        IResult::Ok((i, std::str::from_utf8(exe_name).unwrap()))
-    }
-}
-
 fn shotcut_content(i: &[u8]) -> nom::IResult<&[u8], ()> {
     use nom::character::complete::char;
     use nom::sequence::tuple;
@@ -269,7 +252,7 @@ mod tests {
         let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
 
         let res = shotcut_content(content.as_slice());
-        let unwrapped = res.unwrap();        
+        let _unwrapped = res.unwrap();
     }
 
     #[test]
@@ -277,9 +260,8 @@ mod tests {
         let content = std::fs::read("src/testdata/shortcuts_broken.vdf").unwrap();
 
         let res = parse_shortcuts(content.as_slice());
-        let unwrapped = res.unwrap();        
+        let _unwrapped = res.unwrap();
     }
-
 
     #[test]
     fn get_order_test() {
@@ -299,9 +281,10 @@ mod tests {
             0x02, 0x61, 0x70, 0x70, 0x69, 0x64, 0x00, 0x8D, 0x0F, 0xF8, 0x8C, 0x01, 0x41,
         ];
         let i = DATA;
-        let (r, id) = get_app_id(&i).unwrap();
+        let (r, id) = parse_a_line(&i).unwrap();
         assert_eq!(2, r.len());
-        assert_eq!(2365067149, id);
+        assert_eq!("appid", id.name());
+        assert_eq!(2365067149, id.num_value());
     }
 
     #[test]
@@ -312,8 +295,9 @@ mod tests {
             0x74, 0x65, 0x00,
         ];
         let i = DATA;
-        let res = get_app_name(&i);
-        assert_eq!("Celeste", res.unwrap().1);
+        let (_r, id) = parse_a_line(&i).unwrap();
+        assert_eq!("AppName", id.name());
+        assert_eq!("Celeste", id.text_value());
     }
 
     #[test]
@@ -347,48 +331,6 @@ mod tests {
     }
 
     #[test]
-    fn get_content_from_file_test() {
-        let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
-        let slice = content.as_slice();
-        let (i, _) = shotcut_content(slice).unwrap();
-        let (i, order) = get_order(i).unwrap();
-        assert_eq!(0, order);
-        let (i, app_id) = get_app_id(i).unwrap();
-        assert_eq!(2365067149, app_id);
-        let (i, name) = get_app_name(i).unwrap();
-        assert_eq!("Celeste", name);
-        let (i, exe) = get_exe(i).unwrap();
-        assert_eq!("\"C:\\MySmallPrograms\\epic_launcher.exe\"", exe);
-        let (i, start_dir) = get_start_dir(i).unwrap();
-        assert_eq!("\"C:\\MySmallPrograms\\\"", start_dir);
-        let (i, icon) = get_icon(i).unwrap();
-        assert_eq!("\"F:\\EpicExtra\\Celeste\\Celeste.exe\"", icon);
-        let (i, shortcut_path) = get_shortcut_path(i).unwrap();
-        assert_eq!("", shortcut_path);
-        let (i, lanch_options) = get_launch_options(i).unwrap();
-        assert_eq!("Celeste.exe com.epicgames.launcher://apps/b671fbc7be424e888c9346a9a6d3d9db%3A38c07a09dc174b69b756aa51890c3dd4%3ASalt?action=launch&silent=true", lanch_options);
-        let (i, is_hidden) = get_is_hidden(i).unwrap();
-        assert_eq!(false, is_hidden);
-        let (i, allow_desktop_config) = get_allow_desktop_config(i).unwrap();
-        assert_eq!(false, allow_desktop_config);
-        let (i, allow_overlay) = get_allow_overlay(i).unwrap();
-        assert_eq!(false, allow_overlay);
-        let (i, open_vr) = get_open_vr(i).unwrap();
-        assert_eq!(0, open_vr);
-        let (i, dev_kit) = get_dev_kit(i).unwrap();
-        assert_eq!(0, dev_kit);
-        let (i, dev_kit_game_id) = get_devkit_game_id(i).unwrap();
-        assert_eq!("", dev_kit_game_id);
-        let (i, last_time_played) = get_last_time_played(i).unwrap();
-        assert_eq!(1628913700, last_time_played);
-        let (i, tags) = get_tags(i).unwrap();
-        assert_eq!(3, tags.len());
-        let bs = ascii::AsciiChar::BackSpace.as_byte();
-        assert_eq!(i[0], bs);
-        assert_ne!(i[1], bs);
-    }
-
-    #[test]
     fn get_exe_name_test() {
         const DATA: [u8; 44] = [
             // Offset 0x00000042 to 0x00000085
@@ -399,8 +341,12 @@ mod tests {
         ];
 
         let i = DATA;
-        let res = get_exe(&i);
-        assert_eq!("\"C:\\MySmallPrograms\\epic_launcher.exe\"", res.unwrap().1);
+        let (_r, id) = parse_a_line(&i).unwrap();
+        assert_eq!("Exe", id.name());
+        assert_eq!(
+            "\"C:\\MySmallPrograms\\epic_launcher.exe\"",
+            id.text_value()
+        );
     }
 
     #[test]
@@ -411,8 +357,8 @@ mod tests {
         ];
 
         let i = DATA;
-        let res = get_is_hidden(&i);
-        assert_eq!(false, res.unwrap().1);
+        let (_r, id) = parse_a_line(&i).unwrap();
+        assert_eq!(false, id.num_value() != 0);
     }
 
     #[test]
@@ -424,8 +370,8 @@ mod tests {
         ];
 
         let i = DATA;
-        let res = get_allow_desktop_config(&i);
-        assert_eq!(false, res.unwrap().1);
+        let (_r, id) = parse_a_line(&i).unwrap();
+        assert_eq!(false, id.num_value() != 0);
     }
 
     #[test]
