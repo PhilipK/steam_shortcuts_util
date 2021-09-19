@@ -163,21 +163,21 @@ fn stx_to_bytes(name: &str, input: u32) -> Vec<u8> {
 mod tests {
     use crate::{shortcuts_parser, shortcuts_to_bytes, Shortcut};
 
-    // #[test]
-    // fn parse_back_and_forth() {
-    //     let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
-    //     let shortcuts = shortcuts_parser::parse_shortcuts(content.as_slice()).unwrap();
-    //     let shortcut_bytes_vec = shortcuts_to_bytes(&shortcuts);
-    //     assert_eq!(shortcut_bytes_vec, content);
-    // }
+    #[test]
+    fn parse_back_and_forth() {
+        let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
+        let shortcuts = shortcuts_parser::parse_shortcuts(content.as_slice()).unwrap();
+        let shortcut_bytes_vec = shortcuts_to_bytes(&shortcuts);
+        assert_eq!(shortcut_bytes_vec, content);
+    }
 
-    // #[test]
-    // fn parse_back_and_forth_linux() {
-    //     let content = std::fs::read("src/testdata/linux_shortcut.vdf").unwrap();
-    //     let shortcuts = shortcuts_parser::parse_shortcuts(content.as_slice()).unwrap();
-    //     let shortcut_bytes_vec = shortcuts_to_bytes(&shortcuts);
-    //     assert_eq!(shortcut_bytes_vec, content);
-    // }
+    #[test]
+    fn parse_back_and_forth_linux() {
+        let content = std::fs::read("src/testdata/linux_shortcut.vdf").unwrap();
+        let shortcuts = shortcuts_parser::parse_shortcuts(content.as_slice()).unwrap();
+        let shortcut_bytes_vec = shortcuts_to_bytes(&shortcuts);
+        assert_eq!(shortcut_bytes_vec, content);
+    }
 
     #[test]
     fn write_same_as_steam() {

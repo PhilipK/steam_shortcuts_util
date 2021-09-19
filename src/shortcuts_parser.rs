@@ -269,8 +269,17 @@ mod tests {
         let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
 
         let res = shotcut_content(content.as_slice());
-        assert_eq!(true, res.is_ok());
+        let unwrapped = res.unwrap();        
     }
+
+    #[test]
+    fn parse_full_file() {
+        let content = std::fs::read("src/testdata/shortcuts_broken.vdf").unwrap();
+
+        let res = parse_shortcuts(content.as_slice());
+        let unwrapped = res.unwrap();        
+    }
+
 
     #[test]
     fn get_order_test() {
