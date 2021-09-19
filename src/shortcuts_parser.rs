@@ -35,26 +35,25 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
 
     let (i, lines) = parse_all_lines(i)?;
 
-    let stx_value = |name: &str| lines.get(name).map(|l| l.num_value()).unwrap_or_default();
+    let numeric_value = |name: &str| lines.get(name).map(|l| l.num_value()).unwrap_or_default();
+    let text_value = |name: &str| lines.get(name).map(|l| l.text_value()).unwrap_or_default();
 
-    let soh_value = |name: &str| lines.get(name).map(|l| l.text_value()).unwrap_or_default();
+    let app_id = numeric_value("app_id");
+    let app_name = text_value("AppName");
+    let exe = text_value("Exe");
+    let start_dir = text_value("StartDir");
+    let icon = text_value("icon");
+    let shortcut_path = text_value("ShortcutPath");
+    let launch_options = text_value("LaunchOptions");
+    let is_hidden = numeric_value("IsHidden") != 0;
+    let allow_desktop_config = numeric_value("AllowDesktopConfig") != 0;
+    let allow_overlay = numeric_value("AllowOverlay") != 0;
+    let open_vr = numeric_value("openvr");
+    let dev_kit = numeric_value("Devkit");
 
-    let app_id = stx_value("app_id");
-    let app_name = soh_value("AppName");
-    let exe = soh_value("Exe");
-    let start_dir = soh_value("StartDir");
-    let icon = soh_value("icon");
-    let shortcut_path = soh_value("ShortcutPath");
-    let launch_options = soh_value("LaunchOptions");
-    let is_hidden = stx_value("IsHidden") != 0;
-    let allow_desktop_config = stx_value("AllowDesktopConfig") != 0;
-    let allow_overlay = stx_value("AllowOverlay") != 0;
-    let open_vr = stx_value("openvr");
-    let dev_kit = stx_value("Devkit");
-
-    let dev_kit_game_id = soh_value("DevkitGameID");
-    let dev_kit_overrite_app_id = stx_value("DevkitOverrideAppID");
-    let last_play_time = stx_value("LastPlayTime");
+    let dev_kit_game_id = text_value("DevkitGameID");
+    let dev_kit_overrite_app_id = numeric_value("DevkitOverrideAppID");
+    let last_play_time = numeric_value("LastPlayTime");
 
     let (i, tags) = get_tags(i)?;
     let bs = ascii::AsciiChar::BackSpace.as_byte();
@@ -193,17 +192,6 @@ fn get_order(i: &[u8]) -> nom::IResult<&[u8], usize> {
     IResult::Ok((i, order))
 }
 
-// fn get_last_time_played(i: &[u8]) -> nom::IResult<&[u8], u32> {
-//     stx_line_parser("LastPlayTime", i)
-// }
-
-// fn get_devkit_game_id(i: &[u8]) -> nom::IResult<&[u8], &str> {
-//     soh_line_parser("DevkitGameID")(i)
-// }
-
-// fn get_devkit_override_game_id(i: &[u8]) -> nom::IResult<&[u8], u32> {
-//     stx_line_parser("DevkitOverrideAppID", i)
-// }
 fn get_tags(i: &[u8]) -> nom::IResult<&[u8], Vec<&str>> {
     use nom::sequence::tuple;
 
@@ -221,15 +209,11 @@ fn get_tags(i: &[u8]) -> nom::IResult<&[u8], Vec<&str>> {
 }
 
 fn take_tag<'b>(i: &[u8]) -> nom::IResult<&[u8], &str> {
-    let null = ascii::AsciiChar::Null.as_byte();
     let soh = ascii::AsciiChar::SOH.as_byte();
 
     let (i, _) = tag([soh])(i)?;
-    let (i, _) = take_till(|c| c == null)(i)?;
-    let (i, _) = tag([null])(i)?;
-    let (i, tag_name_bytes) = take_till(|c| c == null)(i)?;
-    let (i, _) = tag([null])(i)?;
-    let tag_name = std::str::from_utf8(&tag_name_bytes).unwrap();
+    let (i, _) = get_null_terminated_str(i)?;        
+    let (i, tag_name) = get_null_terminated_str(i)?;        
     IResult::Ok((i, tag_name))
 }
 
