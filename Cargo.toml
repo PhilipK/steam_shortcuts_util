@@ -18,3 +18,11 @@ nom = "7.0.*"
 nom_locate = "3.0.*"
 ascii = "1.0.*"
 crc32fast = "1.2.*"
+
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "bencharmks"
+harness = false
