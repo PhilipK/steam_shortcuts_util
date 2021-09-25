@@ -45,6 +45,7 @@ pub struct Shortcut<'a> {
 
 /// Struct with data for a steam shortcut.vdf file.
 /// This struct owns the data it is referecing.
+#[derive(Debug, Clone)]
 pub struct ShortcutOwned {
     /// Order/Index  of the shortcut
     pub order: usize,
