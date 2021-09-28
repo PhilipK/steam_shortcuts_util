@@ -35,10 +35,25 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
 
     let (i, lines) = parse_all_lines(i)?;
 
-    let numeric_value = |name: &str| lines.get(name.to_lowercase().as_str()).map(|l| l.num_value()).unwrap_or_default();
-    let text_value = |name: &str| lines.get(name.to_lowercase().as_str()).map(|l| l.text_value()).unwrap_or_default();
+    let numeric_value = |name: &str| {
+        lines
+            .get(name.to_lowercase().as_str())
+            .map(|l| l.num_value())
+            .unwrap_or_default()
+    };
+    let text_value = |name: &str| {
+        lines
+            .get(name.to_lowercase().as_str())
+            .map(|l| l.text_value())
+            .unwrap_or_default()
+    };
 
     let app_id = numeric_value("app_id");
+    let app_id = if app_id == 0 {
+        numeric_value("appid")
+    } else {
+        app_id
+    };
     let app_name = text_value("AppName");
     let exe = text_value("Exe");
     let start_dir = text_value("StartDir");
@@ -212,8 +227,8 @@ fn take_tag<'b>(i: &[u8]) -> nom::IResult<&[u8], &str> {
     let soh = ascii::AsciiChar::SOH.as_byte();
 
     let (i, _) = tag([soh])(i)?;
-    let (i, _) = get_null_terminated_str(i)?;        
-    let (i, tag_name) = get_null_terminated_str(i)?;        
+    let (i, _) = get_null_terminated_str(i)?;
+    let (i, tag_name) = get_null_terminated_str(i)?;
     IResult::Ok((i, tag_name))
 }
 
@@ -292,7 +307,6 @@ mod tests {
         assert_eq!(42, shortcuts.len());
     }
 
-
     #[test]
     fn get_shortcuts_from_file_firefox() {
         let content = std::fs::read("src/testdata/shortcutsfirefox.vdf").unwrap();
@@ -323,6 +337,17 @@ mod tests {
         assert_eq!("Celeste", s.app_name);
         let (_i, s) = get_shortcut(i).unwrap();
         assert_eq!("Death Stranding", s.app_name);
+    }
+
+    #[test]
+    fn parse_format_28092021_spore() {
+        let content = std::fs::read("src/testdata/shortcutsspore.vdf").unwrap();
+        let slice = content.as_slice();
+        let shortcuts = parse_shortcuts(slice).unwrap();
+        let s = shortcuts.get(0).unwrap();
+        assert_eq!("Spore", s.app_name);
+        assert_eq!("\"E:\\Origin\\Spore\\Sporebin\\SporeApp.exe\"", s.exe);
+        assert_ne!(0, s.app_id);
     }
 
     #[test]
