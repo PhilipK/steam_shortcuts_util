@@ -183,4 +183,14 @@ mod tests {
             shortcuts_parser::parse_shortcuts(shortcut_bytes_vec.as_slice()).unwrap();
         assert_eq!(shortcuts, shortcuts_again);
     }
+
+    #[test]
+    fn parse_back_and_forth_firefox() {
+        let content = std::fs::read("src/testdata/shortcutsfirefox.vdf").unwrap();
+        let shortcuts = shortcuts_parser::parse_shortcuts(content.as_slice()).unwrap();
+        let shortcut_bytes_vec = shortcuts_to_bytes(&shortcuts);
+        let shortcuts_again =
+            shortcuts_parser::parse_shortcuts(shortcut_bytes_vec.as_slice()).unwrap();
+        assert_eq!(shortcuts, shortcuts_again);
+    }
 }

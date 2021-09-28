@@ -35,8 +35,8 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
 
     let (i, lines) = parse_all_lines(i)?;
 
-    let numeric_value = |name: &str| lines.get(name).map(|l| l.num_value()).unwrap_or_default();
-    let text_value = |name: &str| lines.get(name).map(|l| l.text_value()).unwrap_or_default();
+    let numeric_value = |name: &str| lines.get(name.to_lowercase().as_str()).map(|l| l.num_value()).unwrap_or_default();
+    let text_value = |name: &str| lines.get(name.to_lowercase().as_str()).map(|l| l.text_value()).unwrap_or_default();
 
     let app_id = numeric_value("app_id");
     let app_name = text_value("AppName");
@@ -118,12 +118,12 @@ impl<'a> LineType<'a> {
     }
 }
 
-fn parse_all_lines<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], HashMap<&'a str, LineType<'a>>> {
+fn parse_all_lines<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], HashMap<String, LineType<'a>>> {
     let (i, list) = many1(parse_a_line)(i)?;
     let mut res = HashMap::new();
     let list_iter = list.into_iter();
     list_iter.for_each(|l| {
-        res.insert(l.name(), l);
+        res.insert(l.name().to_lowercase(), l);
     });
     IResult::Ok((i, res))
 }
@@ -290,6 +290,17 @@ mod tests {
         let slice = content.as_slice();
         let shortcuts = parse_shortcuts(slice).unwrap();
         assert_eq!(42, shortcuts.len());
+    }
+
+
+    #[test]
+    fn get_shortcuts_from_file_firefox() {
+        let content = std::fs::read("src/testdata/shortcutsfirefox.vdf").unwrap();
+        let slice = content.as_slice();
+        let shortcuts = parse_shortcuts(slice).unwrap();
+        assert_eq!(70, shortcuts.len());
+        let found_firefox = shortcuts.iter().find(|s| s.app_name == "Firefox 2");
+        assert!(found_firefox.is_some());
     }
 
     #[test]
