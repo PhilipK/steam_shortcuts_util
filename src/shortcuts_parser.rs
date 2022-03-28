@@ -199,12 +199,11 @@ fn get_null_terminated_str<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], &'a str> {
     IResult::Ok((i, str_res))
 }
 
-fn get_order(i: &[u8]) -> nom::IResult<&[u8], usize> {
+fn get_order<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], &'a str> {
     let null = ascii::AsciiChar::Null.as_byte();
     let (i, _) = tag([null])(i)?;
-    let (i, order_string) = get_null_terminated_str(i)?;
-    let order = order_string.parse::<usize>().unwrap();
-    IResult::Ok((i, order))
+    let (i, order_string) = get_null_terminated_str(i)?;    
+    IResult::Ok((i, order_string))
 }
 
 fn get_tags(i: &[u8]) -> nom::IResult<&[u8], Vec<&str>> {
@@ -269,7 +268,7 @@ mod tests {
             0x00, 0x30, 0x00,
         ];
         let (r, order) = get_order(&DATA).unwrap();
-        assert_eq!(0, order);
+        assert_eq!("0", order);
         assert_eq!(0, r.len());
     }
 

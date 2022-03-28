@@ -3,7 +3,7 @@
 /// Struct with data for a steam shortcut.vdf file.
 pub struct Shortcut<'a> {
     /// Order/Index  of the shortcut
-    pub order: usize,
+    pub order: &'a str,
     /// The id for this shortcut.
     ///
     /// This id can be generated for a shortcut (in a way that steam will accept) with
@@ -48,7 +48,7 @@ pub struct Shortcut<'a> {
 #[derive(Debug, Clone)]
 pub struct ShortcutOwned {
     /// Order/Index  of the shortcut
-    pub order: usize,
+    pub order: String,
     /// The id for this shortcut.
     ///
     /// This id can be generated for a shortcut (in a way that steam will accept) with
@@ -91,7 +91,7 @@ pub struct ShortcutOwned {
 impl ShortcutOwned {
     pub fn borrow<'a>(&'a self) -> Shortcut<'a> {
         Shortcut {
-            order: self.order,
+            order: self.order.as_str(),
             app_id: self.app_id,
             app_name: &self.app_name,
             exe: &self.exe,
@@ -125,7 +125,7 @@ impl<'a> Shortcut<'a> {
     /// * `shortcut_path` - The path to the shortcut.
     /// * `launch_options` - Options to pass to the exe in the target location
     pub fn new(
-        order: usize,
+        order: &'a str,
         app_name: &'a str,
         exe: &'a str,
         start_dir: &'a str,
@@ -167,7 +167,7 @@ impl<'a> Shortcut<'a> {
     pub fn to_owned(&self) -> ShortcutOwned {
         let owned_tags = self.tags.iter().map(|s| s.to_string()).collect();
         ShortcutOwned {
-            order: self.order,
+            order: self.order.to_string(),
             app_id: self.app_id,
             app_name: self.app_name.to_owned(),
             exe: self.exe.to_owned(),
