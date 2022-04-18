@@ -100,9 +100,13 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
 fn parse_shortcuts_inner<'a>(shortcuts_bytes: &'a [u8]) -> nom::IResult<&[u8], Vec<Shortcut<'a>>> {
     let (i, _) = shotcut_content(shortcuts_bytes)?;
     let (i, list) = many0(get_shortcut)(i)?;
+
     let bs = ascii::AsciiChar::BackSpace.as_byte();
-    let (i, _) = tag([bs])(i)?;
-    IResult::Ok((i, list))
+    let bs_tag : nom::IResult<&[u8], _> = tag([bs])(i);    
+    match bs_tag {
+        Ok((i,_bs)) => IResult::Ok((i, list)),
+        Err(_) => IResult::Ok((i, list)),
+    }
 }
 
 pub enum LineType<'a> {
@@ -348,6 +352,15 @@ mod tests {
         assert_eq!("\"E:\\Origin\\Spore\\Sporebin\\SporeApp.exe\"", s.exe);
         assert_ne!(0, s.app_id);
     }
+
+    #[test]
+    fn parse_single_failing_18042022() {
+        let content = std::fs::read("src/testdata/failing.vdf").unwrap();
+        let slice = content.as_slice();
+        let shortcuts = parse_shortcuts(slice).unwrap();
+        assert_eq!(1, shortcuts.len());
+    }
+
 
     #[test]
     fn get_exe_name_test() {
