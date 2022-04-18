@@ -9,7 +9,7 @@ First include the crate in your project:
 
 ```toml
 [dependencies]
-steam_shortcuts_util = "1.0.0"
+steam_shortcuts_util = "1.1.7"
 ```
 
 Then you can use it:
