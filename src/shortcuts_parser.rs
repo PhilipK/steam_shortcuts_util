@@ -54,23 +54,75 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
     } else {
         app_id
     };
-    let app_name = text_value("AppName");
-    let exe = text_value("Exe");
-    let start_dir = text_value("StartDir");
-    let icon = text_value("icon");
-    let shortcut_path = text_value("ShortcutPath");
-    let launch_options = text_value("LaunchOptions");
-    let is_hidden = numeric_value("IsHidden") != 0;
-    let allow_desktop_config = numeric_value("AllowDesktopConfig") != 0;
-    let allow_overlay = numeric_value("AllowOverlay") != 0;
-    let open_vr = numeric_value("openvr");
-    let dev_kit = numeric_value("Devkit");
+    let mut app_name = text_value("AppName");
+    let mut exe = text_value("Exe");
+    let mut start_dir = text_value("StartDir");
+    let mut icon = text_value("icon");
+    let mut shortcut_path = text_value("ShortcutPath");
+    let mut launch_options = text_value("LaunchOptions");
+    let mut is_hidden = numeric_value("IsHidden") != 0;
+    let mut allow_desktop_config = numeric_value("AllowDesktopConfig") != 0;
+    let mut allow_overlay = numeric_value("AllowOverlay") != 0;
+    let mut open_vr = numeric_value("openvr");
+    let mut dev_kit = numeric_value("Devkit");
 
-    let dev_kit_game_id = text_value("DevkitGameID");
-    let dev_kit_overrite_app_id = numeric_value("DevkitOverrideAppID");
-    let last_play_time = numeric_value("LastPlayTime");
+    let mut dev_kit_game_id = text_value("DevkitGameID");
+    let mut dev_kit_overrite_app_id = numeric_value("DevkitOverrideAppID");
+    let mut last_play_time = numeric_value("LastPlayTime");
 
     let (i, tags) = get_tags(i)?;
+    let (i, lines) = parse_all_lines(i)?;
+    let text_value = |name: &str| {
+        lines
+            .get(name.to_lowercase().as_str())
+            .map(|l| l.text_value())
+            .unwrap_or_default()
+    };
+
+    if text_value("AppName") != "" {
+        app_name = text_value("AppName");
+    }
+    if text_value("Exe") != "" {
+        exe = text_value("Exe");
+    }
+    if text_value("StartDir") != "" {
+        start_dir = text_value("StartDir");
+    }
+    if text_value("icon") != "" {
+        icon = text_value("icon");
+    }
+    if text_value("ShortcutPath") != "" {
+        shortcut_path = text_value("ShortcutPath");
+    }
+    if text_value("LaunchOptions") != "" {
+        launch_options = text_value("LaunchOptions");
+    }
+    if numeric_value("IsHidden") != 0 {
+        is_hidden = numeric_value("IsHidden") != 0;
+    }
+    if numeric_value("AllowDesktopConfig") != 0 {
+        allow_desktop_config = numeric_value("AllowDesktopConfig") != 0;
+    }
+    if numeric_value("AllowOverlay") != 0 {
+        allow_overlay = numeric_value("AllowOverlay") != 0;
+    }
+    if numeric_value("openvr") != 0 {
+        open_vr = numeric_value("openvr");
+    }
+    if numeric_value("Devkit") != 0 {
+        dev_kit = numeric_value("Devkit");
+    }
+
+    if text_value("DevkitGameID") != "" {
+        dev_kit_game_id = text_value("DevkitGameID");
+    }
+    if numeric_value("DevkitOverrideAppID") != 0 {
+        dev_kit_overrite_app_id = numeric_value("DevkitOverrideAppID");
+    }
+    if numeric_value("LastPlayTime") != 0 {
+        last_play_time = numeric_value("LastPlayTime");
+    }
+
     let bs = ascii::AsciiChar::BackSpace.as_byte();
     let (i, _) = tag([bs])(i)?;
     IResult::Ok((
@@ -102,9 +154,9 @@ fn parse_shortcuts_inner<'a>(shortcuts_bytes: &'a [u8]) -> nom::IResult<&[u8], V
     let (i, list) = many0(get_shortcut)(i)?;
 
     let bs = ascii::AsciiChar::BackSpace.as_byte();
-    let bs_tag : nom::IResult<&[u8], _> = tag([bs])(i);    
+    let bs_tag: nom::IResult<&[u8], _> = tag([bs])(i);
     match bs_tag {
-        Ok((i,_bs)) => IResult::Ok((i, list)),
+        Ok((i, _bs)) => IResult::Ok((i, list)),
         Err(_) => IResult::Ok((i, list)),
     }
 }
@@ -138,7 +190,7 @@ impl<'a> LineType<'a> {
 }
 
 fn parse_all_lines<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], HashMap<String, LineType<'a>>> {
-    let (i, list) = many1(parse_a_line)(i)?;
+    let (i, list) = many0(parse_a_line)(i)?;
     let mut res = HashMap::new();
     let list_iter = list.into_iter();
     list_iter.for_each(|l| {
@@ -206,7 +258,7 @@ fn get_null_terminated_str<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], &'a str> {
 fn get_order<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], &'a str> {
     let null = ascii::AsciiChar::Null.as_byte();
     let (i, _) = tag([null])(i)?;
-    let (i, order_string) = get_null_terminated_str(i)?;    
+    let (i, order_string) = get_null_terminated_str(i)?;
     IResult::Ok((i, order_string))
 }
 
@@ -358,9 +410,17 @@ mod tests {
         let content = std::fs::read("src/testdata/failing.vdf").unwrap();
         let slice = content.as_slice();
         let shortcuts = parse_shortcuts(slice).unwrap();
-        assert_eq!(1, shortcuts.len());
+        assert_eq!(5, shortcuts.len());
     }
 
+    #[test]
+    fn parse_steam_rom_manager() {
+        let content = std::fs::read("src/testdata/steam_rom_manager.vdf").unwrap();
+        let slice = content.as_slice();
+        let shortcuts = parse_shortcuts(slice).unwrap();
+        println!("{:?}", shortcuts);
+        assert_eq!(4, shortcuts.len());
+    }
 
     #[test]
     fn get_exe_name_test() {
