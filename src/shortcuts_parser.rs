@@ -150,7 +150,7 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
 }
 
 fn parse_shortcuts_inner<'a>(shortcuts_bytes: &'a [u8]) -> nom::IResult<&[u8], Vec<Shortcut<'a>>> {
-    let (i, _) = shotcut_content(shortcuts_bytes)?;
+    let (i, _) = shortcut_content(shortcuts_bytes)?;
     let (i, list) = many0(get_shortcut)(i)?;
 
     let bs = ascii::AsciiChar::BackSpace.as_byte();
@@ -287,7 +287,7 @@ fn take_tag<'b>(i: &[u8]) -> nom::IResult<&[u8], &str> {
     IResult::Ok((i, tag_name))
 }
 
-fn shotcut_content(i: &[u8]) -> nom::IResult<&[u8], ()> {
+fn shortcut_content(i: &[u8]) -> nom::IResult<&[u8], ()> {
     use nom::character::complete::char;
     use nom::sequence::tuple;
     let null = ascii::AsciiChar::Null.as_char();
@@ -305,7 +305,7 @@ mod tests {
     fn get_content() {
         let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
 
-        let res = shotcut_content(content.as_slice());
+        let res = shortcut_content(content.as_slice());
         let _unwrapped = res.unwrap();
     }
 
@@ -376,7 +376,7 @@ mod tests {
     fn get_shortcut_content_test() {
         let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
         let slice = content.as_slice();
-        let (i, _) = shotcut_content(slice).unwrap();
+        let (i, _) = shortcut_content(slice).unwrap();
         let (i, s) = get_shortcut(i).unwrap();
         assert_eq!("Celeste", s.app_name);
         let (_i, s) = get_shortcut(i).unwrap();
@@ -387,7 +387,7 @@ mod tests {
     fn get_shortcut_content_test_mixed() {
         let content = std::fs::read("src/testdata/shortcuts2.vdf").unwrap();
         let slice = content.as_slice();
-        let (i, _) = shotcut_content(slice).unwrap();
+        let (i, _) = shortcut_content(slice).unwrap();
         let (i, s) = get_shortcut(i).unwrap();
         assert_eq!("Celeste", s.app_name);
         let (_i, s) = get_shortcut(i).unwrap();
