@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use nom::bytes::complete::{tag, take, take_till};
-use nom::multi::{many0, many1};
+use nom::multi::many0;
 use nom::IResult;
 
 use crate::shortcut::Shortcut;
@@ -450,7 +450,7 @@ mod tests {
 
         let i = DATA;
         let (_r, id) = parse_a_line(&i).unwrap();
-        assert_eq!(false, id.num_value() != 0);
+        assert_eq!(id.num_value(), 0);
     }
 
     #[test]
@@ -463,7 +463,7 @@ mod tests {
 
         let i = DATA;
         let (_r, id) = parse_a_line(&i).unwrap();
-        assert_eq!(false, id.num_value() != 0);
+        assert_eq!(id.num_value(), 0);
     }
 
     #[test]
