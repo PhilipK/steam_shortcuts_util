@@ -77,7 +77,7 @@ fn shortcut_to_bytes(order: usize, shortcut: &Shortcut) -> Vec<u8> {
     res.append(&mut soh_to_bytes("DevkitGameID", shortcut.dev_kit_game_id));
     res.append(&mut stx_to_bytes(
         "DevkitOverrideAppID",
-        shortcut.dev_kit_overrite_app_id,
+        shortcut.dev_kit_override_app_id,
     ));
 
     res.append(&mut stx_to_bytes("LastPlayTime", shortcut.last_play_time));

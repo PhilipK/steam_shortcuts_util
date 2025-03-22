@@ -67,7 +67,7 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
     let mut dev_kit = numeric_value("Devkit");
 
     let mut dev_kit_game_id = text_value("DevkitGameID");
-    let mut dev_kit_overrite_app_id = numeric_value("DevkitOverrideAppID");
+    let mut dev_kit_override_app_id = numeric_value("DevkitOverrideAppID");
     let mut last_play_time = numeric_value("LastPlayTime");
 
     let (i, tags) = get_tags(i)?;
@@ -117,7 +117,7 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
         dev_kit_game_id = text_value("DevkitGameID");
     }
     if numeric_value("DevkitOverrideAppID") != 0 {
-        dev_kit_overrite_app_id = numeric_value("DevkitOverrideAppID");
+        dev_kit_override_app_id = numeric_value("DevkitOverrideAppID");
     }
     if numeric_value("LastPlayTime") != 0 {
         last_play_time = numeric_value("LastPlayTime");
@@ -144,7 +144,7 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
             dev_kit_game_id,
             last_play_time,
             tags,
-            dev_kit_overrite_app_id,
+            dev_kit_override_app_id,
         },
     ))
 }

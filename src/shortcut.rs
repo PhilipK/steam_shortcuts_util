@@ -33,8 +33,8 @@ pub struct Shortcut<'a> {
     pub dev_kit: u32,
     /// Devkit game id
     pub dev_kit_game_id: &'a str,
-    /// Devkit overrite_app_id
-    pub dev_kit_overrite_app_id: u32,
+    /// Devkit override_app_id
+    pub dev_kit_override_app_id: u32,
     /// The last time played in u32 seconds
     pub last_play_time: u32,
     /// A list of tags for this shortcut
@@ -78,8 +78,8 @@ pub struct ShortcutOwned {
     pub dev_kit: u32,
     /// Devkit game id
     pub dev_kit_game_id: String,
-    /// Devkit overrite_app_id
-    pub dev_kit_overrite_app_id: u32,
+    /// Devkit override_app_id
+    pub dev_kit_override_app_id: u32,
     /// The last time played in u32 seconds
     pub last_play_time: u32,
     /// A list of tags for this shortcut
@@ -105,7 +105,7 @@ impl ShortcutOwned {
             open_vr: self.open_vr,
             dev_kit: self.dev_kit,
             dev_kit_game_id: &self.dev_kit_game_id,
-            dev_kit_overrite_app_id: self.dev_kit_overrite_app_id,
+            dev_kit_override_app_id: self.dev_kit_override_app_id,
             last_play_time: self.last_play_time,
             tags: self.tags.iter().map(|x| x.as_str()).collect(),
         }
@@ -141,7 +141,7 @@ impl<'a> Shortcut<'a> {
         let dev_kit = 0;
         let dev_kit_game_id = "";
         let last_play_time = 0;
-        let dev_kit_overrite_app_id = 0;
+        let dev_kit_override_app_id = 0;
         let tags = vec![];
         Self {
             order,
@@ -159,7 +159,7 @@ impl<'a> Shortcut<'a> {
             dev_kit,
             dev_kit_game_id,
             last_play_time,
-            dev_kit_overrite_app_id,
+            dev_kit_override_app_id,
             tags,
         }
     }
@@ -181,7 +181,7 @@ impl<'a> Shortcut<'a> {
             open_vr: self.open_vr,
             dev_kit: self.dev_kit,
             dev_kit_game_id: self.dev_kit_game_id.to_owned(),
-            dev_kit_overrite_app_id: self.dev_kit_overrite_app_id,
+            dev_kit_override_app_id: self.dev_kit_override_app_id,
             last_play_time: self.last_play_time,
             tags: owned_tags,
         }
