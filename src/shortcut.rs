@@ -23,7 +23,7 @@ pub struct Shortcut<'a> {
     pub launch_options: &'a str,
     /// Is this shortcut hidden?
     pub is_hidden: bool,
-    /// Is dekstop configuration allowed
+    /// Is desktop configuration allowed
     pub allow_desktop_config: bool,
     /// Are steam overlays allowed
     pub allow_overlay: bool,
@@ -68,7 +68,7 @@ pub struct ShortcutOwned {
     pub launch_options: String,
     /// Is this shortcut hidden?
     pub is_hidden: bool,
-    /// Is dekstop configuration allowed
+    /// Is desktop configuration allowed
     pub allow_desktop_config: bool,
     /// Are steam overlays allowed
     pub allow_overlay: bool,
