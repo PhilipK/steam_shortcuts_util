@@ -34,6 +34,9 @@
 //!
 //! *Be aware that if you overwrite the shortcuts.vdf file, you will have to restart Steam for the changes to take effect.*
 
+// Disable warn-by-default lints
+#![allow(clippy::all)]
+
 pub mod app_id_generator;
 pub mod shortcut;
 pub mod shortcuts_parser;
