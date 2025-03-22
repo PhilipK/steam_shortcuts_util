@@ -126,7 +126,7 @@ fn soh_to_bytes(name: &str, input: &str) -> Vec<u8> {
     res.extend_from_slice(name.as_bytes());
 
     res.push(null);
-    res.extend_from_slice(&input.as_bytes());
+    res.extend_from_slice(input.as_bytes());
     res.push(null);
     res
 }
