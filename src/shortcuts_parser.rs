@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_till};
 use nom::multi::{many0, many1};
 use nom::IResult;
@@ -291,7 +292,11 @@ fn shotcut_content(i: &[u8]) -> nom::IResult<&[u8], ()> {
     use nom::character::complete::char;
     use nom::sequence::tuple;
     let null = ascii::AsciiChar::Null.as_char();
-    let mut start_sequence = tuple((char(null), tag("shortcuts"), char(null)));
+    let mut start_sequence = tuple((
+        char(null),
+        alt((tag("shortcuts"), tag("Shortcuts"))),
+        char(null),
+    ));
     let (x, _y) = start_sequence(i)?;
     IResult::Ok((x, ()))
 }
