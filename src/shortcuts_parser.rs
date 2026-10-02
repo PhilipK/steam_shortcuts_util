@@ -338,10 +338,7 @@ mod tests {
     fn invalid_utf8_is_an_error_not_a_panic() {
         let mut content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
         let key = b"\x01icon\x00";
-        let pos = content
-            .windows(key.len())
-            .position(|w| w == key)
-            .unwrap();
+        let pos = content.windows(key.len()).position(|w| w == key).unwrap();
         let value_start = pos + key.len();
         content.splice(value_start..value_start, [0xc3, 0x28, 0xff]);
 
