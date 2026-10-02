@@ -7,6 +7,7 @@ use nom::IResult;
 use crate::shortcut::Shortcut;
 
 const INVALID_UTF8: nom::error::ErrorKind = nom::error::ErrorKind::Verify;
+const UNPARSED_REST: nom::error::ErrorKind = nom::error::ErrorKind::Eof;
 
 /// Parse bytes to shortcuts, if the bytes are in a format of the shortcuts.vdf file.
 ///
@@ -31,6 +32,10 @@ pub fn parse_shortcuts<'a>(shortcuts_bytes: &'a [u8]) -> Result<Vec<Shortcut<'a>
         Err(nom::Err::Failure(err)) if err.code == INVALID_UTF8 => Result::Err(format!(
             "Text is not valid UTF-8, the file may be corrupted: {:?}",
             String::from_utf8_lossy(err.input)
+        )),
+        Err(nom::Err::Failure(err)) if err.code == UNPARSED_REST => Result::Err(format!(
+            "Could not parse the shortcut starting {} bytes before the end of the file, the file may be corrupted",
+            err.input.len()
         )),
         Err(err) => Result::Err(format!("{}", err)),
     }
@@ -159,12 +164,14 @@ fn parse_shortcuts_inner<'a>(shortcuts_bytes: &'a [u8]) -> nom::IResult<&[u8], V
     let (i, _) = shotcut_content(shortcuts_bytes)?;
     let (i, list) = many0(get_shortcut)(i)?;
 
+    // The file ends with up to two backspaces closing the list. Anything else left
+    // over is a shortcut that could not be parsed. Returning the list so far would let
+    // a caller write the file back without that shortcut and every one after it.
     let bs = ascii::AsciiChar::BackSpace.as_byte();
-    let bs_tag: nom::IResult<&[u8], _> = tag([bs])(i);
-    match bs_tag {
-        Ok((i, _bs)) => IResult::Ok((i, list)),
-        Err(_) => IResult::Ok((i, list)),
+    if i.iter().any(|b| *b != bs) {
+        return Err(nom::Err::Failure(nom::error::Error::new(i, UNPARSED_REST)));
     }
+    IResult::Ok((&i[i.len()..], list))
 }
 
 pub enum LineType<'a> {
@@ -341,6 +348,26 @@ mod tests {
         let res = parse_shortcuts(content.as_slice());
         let err = res.unwrap_err();
         assert!(err.contains("not valid UTF-8"), "{}", err);
+    }
+
+    #[test]
+    fn a_shortcut_that_cannot_be_parsed_is_an_error_not_a_shorter_list() {
+        let mut content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
+        assert_eq!(42, parse_shortcuts(content.as_slice()).unwrap().len());
+
+        // Give the Exe line of the second shortcut a type byte that does not exist.
+        let key = b"\x01exe\x00";
+        let second_exe = content
+            .windows(key.len())
+            .enumerate()
+            .filter(|(_, w)| w.eq_ignore_ascii_case(key))
+            .map(|(pos, _)| pos)
+            .nth(1)
+            .unwrap();
+        content[second_exe] = 0x07;
+
+        let err = parse_shortcuts(content.as_slice()).unwrap_err();
+        assert!(err.contains("Could not parse the shortcut"), "{}", err);
     }
 
     #[test]
