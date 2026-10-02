@@ -6,6 +6,8 @@ use nom::IResult;
 
 use crate::shortcut::Shortcut;
 
+const INVALID_UTF8: nom::error::ErrorKind = nom::error::ErrorKind::Verify;
+
 /// Parse bytes to shortcuts, if the bytes are in a format of the shortcuts.vdf file.
 ///
 /// ### Examples
@@ -26,6 +28,10 @@ use crate::shortcut::Shortcut;
 pub fn parse_shortcuts<'a>(shortcuts_bytes: &'a [u8]) -> Result<Vec<Shortcut<'a>>, String> {
     match parse_shortcuts_inner(shortcuts_bytes) {
         Ok((_, shortcuts)) => Result::Ok(shortcuts),
+        Err(nom::Err::Failure(err)) if err.code == INVALID_UTF8 => Result::Err(format!(
+            "Text is not valid UTF-8, the file may be corrupted: {:?}",
+            String::from_utf8_lossy(err.input)
+        )),
         Err(err) => Result::Err(format!("{}", err)),
     }
 }
@@ -200,8 +206,10 @@ fn parse_all_lines<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], HashMap<String, Li
 }
 
 fn parse_a_line<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], LineType<'a>> {
-    if let Ok((i, (name, value))) = parse_text_line(i) {
-        return IResult::Ok((i, LineType::Text { name, value }));
+    match parse_text_line(i) {
+        Ok((i, (name, value))) => return IResult::Ok((i, LineType::Text { name, value })),
+        Err(err @ nom::Err::Failure(_)) => return Err(err),
+        Err(_) => {}
     }
     let (i, (name, value)) = parse_numeric_line(i)?;
     return IResult::Ok((i, LineType::Numeric { name, value }));
@@ -249,8 +257,10 @@ fn get_null_terminated_str<'a>(i: &'a [u8]) -> nom::IResult<&'a [u8], &'a str> {
     let null = ascii::AsciiChar::Null.as_byte();
     let (i, str_bytes) = take_till(|cond| cond == null)(i)?;
 
-    //TODO Remove this unwrap
-    let str_res = std::str::from_utf8(str_bytes).unwrap();
+    // A Failure (not an Error) so that many0 and the text/numeric fallback stop
+    // instead of treating the rest of the file as "no more shortcuts".
+    let str_res = std::str::from_utf8(str_bytes)
+        .map_err(|_| nom::Err::Failure(nom::error::Error::new(str_bytes, INVALID_UTF8)))?;
     let (i, _null) = tag([null])(i)?;
     IResult::Ok((i, str_res))
 }
@@ -315,6 +325,22 @@ mod tests {
 
         let res = parse_shortcuts(content.as_slice());
         let _unwrapped = res.unwrap();
+    }
+
+    #[test]
+    fn invalid_utf8_is_an_error_not_a_panic() {
+        let mut content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
+        let key = b"\x01icon\x00";
+        let pos = content
+            .windows(key.len())
+            .position(|w| w == key)
+            .unwrap();
+        let value_start = pos + key.len();
+        content.splice(value_start..value_start, [0xc3, 0x28, 0xff]);
+
+        let res = parse_shortcuts(content.as_slice());
+        let err = res.unwrap_err();
+        assert!(err.contains("not valid UTF-8"), "{}", err);
     }
 
     #[test]
