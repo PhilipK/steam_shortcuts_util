@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_till};
-use nom::multi::{many0, many1};
+use nom::multi::many0;
 use nom::IResult;
 
 use crate::shortcut::Shortcut;
@@ -79,7 +79,7 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
     let mut dev_kit = numeric_value("Devkit");
 
     let mut dev_kit_game_id = text_value("DevkitGameID");
-    let mut dev_kit_overrite_app_id = numeric_value("DevkitOverrideAppID");
+    let mut dev_kit_override_app_id = numeric_value("DevkitOverrideAppID");
     let mut last_play_time = numeric_value("LastPlayTime");
 
     let (i, tags) = get_tags(i)?;
@@ -129,7 +129,7 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
         dev_kit_game_id = text_value("DevkitGameID");
     }
     if numeric_value("DevkitOverrideAppID") != 0 {
-        dev_kit_overrite_app_id = numeric_value("DevkitOverrideAppID");
+        dev_kit_override_app_id = numeric_value("DevkitOverrideAppID");
     }
     if numeric_value("LastPlayTime") != 0 {
         last_play_time = numeric_value("LastPlayTime");
@@ -156,13 +156,13 @@ fn get_shortcut<'a>(i: &'a [u8]) -> nom::IResult<&[u8], Shortcut<'a>> {
             dev_kit_game_id,
             last_play_time,
             tags,
-            dev_kit_overrite_app_id,
+            dev_kit_override_app_id,
         },
     ))
 }
 
 fn parse_shortcuts_inner<'a>(shortcuts_bytes: &'a [u8]) -> nom::IResult<&[u8], Vec<Shortcut<'a>>> {
-    let (i, _) = shotcut_content(shortcuts_bytes)?;
+    let (i, _) = shortcut_content(shortcuts_bytes)?;
     let (i, list) = many0(get_shortcut)(i)?;
 
     // The file ends with up to two backspaces closing the list. Anything else left
@@ -305,7 +305,7 @@ fn take_tag<'b>(i: &[u8]) -> nom::IResult<&[u8], &str> {
     IResult::Ok((i, tag_name))
 }
 
-fn shotcut_content(i: &[u8]) -> nom::IResult<&[u8], ()> {
+fn shortcut_content(i: &[u8]) -> nom::IResult<&[u8], ()> {
     use nom::character::complete::char;
     use nom::sequence::tuple;
     let null = ascii::AsciiChar::Null.as_char();
@@ -327,7 +327,7 @@ mod tests {
     fn get_content() {
         let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
 
-        let res = shotcut_content(content.as_slice());
+        let res = shortcut_content(content.as_slice());
         let _unwrapped = res.unwrap();
     }
 
@@ -431,7 +431,7 @@ mod tests {
     fn get_shortcut_content_test() {
         let content = std::fs::read("src/testdata/shortcuts.vdf").unwrap();
         let slice = content.as_slice();
-        let (i, _) = shotcut_content(slice).unwrap();
+        let (i, _) = shortcut_content(slice).unwrap();
         let (i, s) = get_shortcut(i).unwrap();
         assert_eq!("Celeste", s.app_name);
         let (_i, s) = get_shortcut(i).unwrap();
@@ -442,7 +442,7 @@ mod tests {
     fn get_shortcut_content_test_mixed() {
         let content = std::fs::read("src/testdata/shortcuts2.vdf").unwrap();
         let slice = content.as_slice();
-        let (i, _) = shotcut_content(slice).unwrap();
+        let (i, _) = shortcut_content(slice).unwrap();
         let (i, s) = get_shortcut(i).unwrap();
         assert_eq!("Celeste", s.app_name);
         let (_i, s) = get_shortcut(i).unwrap();
@@ -505,7 +505,7 @@ mod tests {
 
         let i = DATA;
         let (_r, id) = parse_a_line(&i).unwrap();
-        assert_eq!(false, id.num_value() != 0);
+        assert_eq!(id.num_value(), 0);
     }
 
     #[test]
@@ -518,7 +518,7 @@ mod tests {
 
         let i = DATA;
         let (_r, id) = parse_a_line(&i).unwrap();
-        assert_eq!(false, id.num_value() != 0);
+        assert_eq!(id.num_value(), 0);
     }
 
     #[test]
